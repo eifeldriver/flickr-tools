@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         New Userscript
+// @name         Flickr-Tools
 // @namespace    http://tampermonkey.net/
-// @version      0.1
-// @description  try to take over the world!
-// @author       You
+// @version      0.11
+// @description  little script helpers for Flickr
+// @author       EifelDriver
 // @include      https://www.flickr.com/photos/*
 // @grant        none
 // ==/UserScript==
@@ -14,16 +14,19 @@
     /**
      * define some vars
      */
-    var this_version = '0.1';
+    var js_version = '0.11';
+    var js_debug = 1;
     var version_file = 'https://raw.githubusercontent.com/eifeldriver/flickr-tools/master/version';
     var watcher = null;
 
     var actions_css = '' +
         '.my-icon-edit { background: darkgreen url(https://s.yimg.com/ap/build/images/sprites/icons-938e2840.png) -413px -237px no-repeat;' +
         '   width: 18px; height: 18px; text-indent: 100%; white-space: nowrap; overflow: hidden; display: inline-block; position: absolute; ' +
-        '   top: 8px; left: 1px; transform: scale(1.5); outline: 1px solid #eee; z-index: 9999; } ' +
+        '   top: 8px; left: 1px; transform: scale(1.5); outline: 1px solid #eee; z-index: 9999; ' +
+        '   transition: transform 1.0; } ' +
         '.my-icon-edit.single-img {top: 65px; left: 220px; } ' +
         '.my-icon-edit:hover { background-color: green; } ' +
+        '.scaleit { transform: scale(2.0); } ' +
         '.flashit { background-color: lightgreen; }' +
         '';
 
@@ -31,6 +34,17 @@
         '';
 
 //------------------------------------------------------------
+
+    /**
+     * debug output function
+     */
+    function _debug(txt) {
+        if (js_debug) {
+            var d = new Date();
+            var now = [d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds()].join(':');
+            console.log(now + ': ' + txt);
+        }
+    }
 
     /**
      * check Github version with local version
@@ -41,7 +55,7 @@
         xhr.onload = function() {
             if (xhr.status == 200) {
                 var repo_version = xhr.responseText;
-                if (this_version.trim() != repo_version.trim()) {
+                if (js_version.trim() != repo_version.trim()) {
                     // other version available
                     var info = document.createElement('DIV');
                     info.id = 'dim-tools-update';
@@ -128,9 +142,9 @@
         var url = 'https:' + div.style.backgroundImage.split('"')[1];
         if (copyToClipboard(url)) {
             // flash icon
-            icon.className = ' flashit';
+            icon.className += ' flashit scaleit';
             window.setTimeout(function() {
-                e.target.className = '';
+                e.target.className = e.target.className.replace(' flashit', '').replace(' scaleit', '');
             }, 1000);
         }
     }
@@ -146,9 +160,9 @@
         var url = document.querySelector('.view.photo-well-media-scrappy-view > img.main-photo').src;
         if (copyToClipboard(url)) {
             // flash icon
-            icon.className = ' flashit';
+            icon.className += ' flashit scaleit';
             window.setTimeout(function() {
-                e.target.className = '';
+                e.target.className = e.target.className.replace(' flashit', '').replace(' scaleit', '');
             }, 1000);
         }
     }
@@ -185,8 +199,10 @@
     function initFlickrTools() {
         insertCss(css);
         var curr_context = getCurrentContext();
+        _debug('context = ' + curr_context);
         switch (curr_context) {
-            case 'photostream-page-view': // photo stream page
+            case 'photostream-page-view':
+            case 'album-page-view':
                 addUrlCopyIconOnStreamPage();
                 break;
             case 'photo-page-scrappy-view': // single photo view
@@ -204,5 +220,5 @@
      * start script
      */
     initFlickrTools();
-    console.log('flickr-tools started');
+    _debug('flickr-tools started');
 })();
