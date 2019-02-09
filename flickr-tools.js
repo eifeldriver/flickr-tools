@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Flickr-Tools
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.21
 // @description  little script helpers for Flickr
 // @author       EifelDriver
 // @include      https://www.flickr.com/photos/*
@@ -14,7 +14,7 @@
     /**
      * define some vars
      */
-    var js_version = '0.2';
+    var js_version = '0.21';
     var js_debug = 1;
     var version_file = 'https://raw.githubusercontent.com/eifeldriver/flickr-tools/master/version';
     var watcher = null;
@@ -117,6 +117,14 @@
     /**
      * copy the image url to clipboard
      *
+     * The copy process using a trick:
+     *  - create textarea
+     *  - put text inside
+     *  - set focus to the element
+     *  - mark the text
+     *  - use browser copy command
+     *  - remove textarea
+     *
      * @param txt
      * @returns {*}
      */
@@ -147,10 +155,11 @@
     /**
      * set actions for the image copy dialog
      */
-    function activateCopyImgDialog(dialog) {
-        if (dialog && (dialog.className.indexOf('copy-dialog') != -1)) {
+    function setActionsForCopyImgDialog(dialog) {
+        if (dialog && (dialog.className.indexOf('copy-dialog') != -1)) { // process only on .copy-dialog element
             var div = dialog.parentNode;
             var url, needle;
+            // check witch context is active
             if (div.id == 'content') { // single image view
                  url = document.querySelector('.view.photo-well-media-scrappy-view > img.main-photo').src;
                  needle = '_b.jpg';
@@ -158,7 +167,9 @@
                  url = 'https:' + div.style.backgroundImage.split('"')[1];
                  needle = '_c.jpg';
             }
+            // store img url for later use
             dialog.dataset.imgurl = url;
+            // add actions
             dialog.querySelectorAll("a").forEach(
                 function (a) {
                     a.addEventListener('click',
@@ -186,7 +197,7 @@
                                     break;
                             }
                             if (copyToClipboard(url)) {
-                                // close dialog
+                                // success
                                 var dialog = elem.parentNode;
                                 var icon = dialog.nextSibling;
                                 // mark copy icon green for a short time
@@ -214,6 +225,12 @@
         }
     }
 
+    /**
+     * enable/disable copy dialog
+     *
+     * Info: icon and dialog are direct DOM siblings !
+     * @param e
+     */
     function toggleCopyImgUrlDialog(e) {
         e.stopPropagation();
         var icon = e.target;
@@ -227,7 +244,7 @@
                 dialog.innerHTML = copy_img_dialog;
                 icon.parentNode.insertBefore(dialog, icon);
                 icon.className = icon.className.replace(' open', '') + ' open';
-                activateCopyImgDialog(dialog);
+                setActionsForCopyImgDialog(dialog);
             } else { // dialog open
                 closeCopyImgUrlDialog(icon.previousSibling);
                 icon.className = icon.className.replace(' open', '');
@@ -243,7 +260,7 @@
         imgs.forEach( function (img) {
             var icon = document.createElement('SPAN');
             icon.className = 'my-icon-edit';
-            icon.title = 'copy img url';
+            icon.title = 'open copy dialog';
             img.prepend(icon);
             img.addEventListener('click', toggleCopyImgUrlDialog);
         });
@@ -256,7 +273,7 @@
         var img = document.querySelector('.view.photo-well-media-scrappy-view > img.main-photo');
         var icon = document.createElement('SPAN');
         icon.className = 'my-icon-edit single-img';
-        icon.title = 'copy img url';
+        icon.title = 'open copy dialog';
         document.querySelector('#content').prepend(icon);
         // icon.addEventListener('click', copySingleImgUrl);
         icon.addEventListener('click', toggleCopyImgUrlDialog);
@@ -264,6 +281,10 @@
 
     /**
      * init the script
+     *
+     * The script have to identify the current context, because the copy dialog must insert in different way
+     * for stram7album and single image view. Stream view hold the image url in background-image CSS property and
+     * single image view have img tags with the urls.
      */
     function initFlickrTools() {
         insertCss(css);
