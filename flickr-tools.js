@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Flickr-Tools
+// @name         flickr-tools
 // @namespace    http://tampermonkey.net/
 // @version      0.21
 // @description  little script helpers for Flickr
