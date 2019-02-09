@@ -19,16 +19,20 @@
     var version_file = 'https://raw.githubusercontent.com/eifeldriver/flickr-tools/master/version';
     var watcher = null;
 
+
     var actions_css = '' +
-        '.my-icon-edit { background: darkgreen url(https://s.yimg.com/ap/build/images/sprites/icons-938e2840.png) -413px -237px no-repeat;' +
-        '   width: 18px; height: 18px; text-indent: 100%; white-space: nowrap; overflow: hidden; display: inline-block; position: absolute; ' +
-        '   top: 5px; left: 5px; z-index: 9999; transition: transform 1.0s; } ' +
+        '.my-icon-edit { background: #444 url(https://s.yimg.com/ap/build/images/sprites/icons-938e2840.png) -412px -236px no-repeat;' +
+        '   width: 18px; height: 18px; padding: 1px; text-indent: 100%; white-space: nowrap; overflow: hidden; display: inline-block;' +
+        '   position: absolute; top: 5px; left: 5px; z-index: 9999; transition: transform 1.0s, background-color 0.5s; } ' +
         '.my-icon-edit.single-img {top: 65px; left: 220px; } ' +
-        '.my-icon-edit:hover { background-color: green; outline: 1px solid #eee; } ' +
-        '.copy-dialog { background: darkgreen; position: absolute; left: 5px; top: 27px; color: #fff; z-index: 19999; } ' +
+        '.my-icon-edit:hover { background-color: #f5f6f6; outline: 1px solid #eee; } ' +
+        '.my-icon-edit.open { background-color: #f5f6f6; } ' +
+        '.my-icon-edit.success { background-color: lightgreen; } ' +
+        '.copy-dialog { background: #f5f6f6; position: absolute; left: 5px; top: 27px; color: #fff; z-index: 19999; } ' +
         '.copy-dialog.single-img { left: 220px; top: 85px; } ' +
-        '.copy-dialog a { display: inline-block; padding: 2px 5px; margin-right: 2px; color: #aaa; text-decoration: none; }' +
-        '.copy-dialog a:hover { background: green; color: #fff; text-decoration: none;  }' +
+        '.copy-dialog a { display: inline-block; padding: 2px 5px; margin-right: 2px; color: #999; text-decoration: none; ' +
+        '                 transition: background-color 0.2s;}' +
+        '.copy-dialog a:hover { background: #999; color: #fff; text-decoration: none;  }' +
         '.ft_scaleit { transform: scale(2.0); } ' +
         '.ft_active { background-color: lightgreen; outline: 1px solid #eee; }' +
         '';
@@ -150,15 +154,17 @@
             if (div.id == 'content') { // single image view
                  url = document.querySelector('.view.photo-well-media-scrappy-view > img.main-photo').src;
                  needle = '_b.jpg';
-            } else if (div.className.indexOf() != -1) { // photostream or album view
+            } else if (div.className.indexOf('photo-list-photo-view') != -1) { // photostream or album view
                  url = 'https:' + div.style.backgroundImage.split('"')[1];
                  needle = '_c.jpg';
             }
+            dialog.dataset.imgurl = url;
             dialog.querySelectorAll("a").forEach(
                 function (a) {
                     a.addEventListener('click',
                         function(e) {
                             var elem = e.target;
+                            var url = elem.parentNode.dataset.imgurl; // from span.copy-dialog
                             switch(elem.name) {
                                 case 'thumb': // 150 x 150
                                     url = url.replace(needle, '_q.jpg');
@@ -181,7 +187,15 @@
                             }
                             if (copyToClipboard(url)) {
                                 // close dialog
-                                closeCopyImgUrlDialog(elem.parentNode); // is span.copy-dialog
+                                var dialog = elem.parentNode;
+                                var icon = dialog.nextSibling;
+                                // mark copy icon green for a short time
+                                icon.className = icon.className.replace(' open', '') + ' success';
+                                window.setTimeout(function() {
+                                    var icon = document.querySelector('.my-icon-edit.success');
+                                    icon.className = icon.className.replace(' success', '');
+                                }, 1200);
+                                closeCopyImgUrlDialog(dialog);
                             }
                         }
                     );
