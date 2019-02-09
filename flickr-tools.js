@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Flickr-Tools
 // @namespace    http://tampermonkey.net/
-// @version      0.11
+// @version      0.2
 // @description  little script helpers for Flickr
 // @author       EifelDriver
 // @include      https://www.flickr.com/photos/*
@@ -14,7 +14,7 @@
     /**
      * define some vars
      */
-    var js_version = '0.11';
+    var js_version = '0.2';
     var js_debug = 1;
     var version_file = 'https://raw.githubusercontent.com/eifeldriver/flickr-tools/master/version';
     var watcher = null;
@@ -22,16 +22,23 @@
     var actions_css = '' +
         '.my-icon-edit { background: darkgreen url(https://s.yimg.com/ap/build/images/sprites/icons-938e2840.png) -413px -237px no-repeat;' +
         '   width: 18px; height: 18px; text-indent: 100%; white-space: nowrap; overflow: hidden; display: inline-block; position: absolute; ' +
-        '   top: 8px; left: 1px; transform: scale(1.5); outline: 1px solid #eee; z-index: 9999; ' +
-        '   transition: transform 1.0; } ' +
+        '   top: 5px; left: 5px; z-index: 9999; transition: transform 1.0s; } ' +
         '.my-icon-edit.single-img {top: 65px; left: 220px; } ' +
-        '.my-icon-edit:hover { background-color: green; } ' +
-        '.scaleit { transform: scale(2.0); } ' +
-        '.flashit { background-color: lightgreen; }' +
+        '.my-icon-edit:hover { background-color: green; outline: 1px solid #eee; } ' +
+        '.copy-dialog { background: darkgreen; position: absolute; left: 5px; top: 27px; color: #fff; z-index: 19999; } ' +
+        '.copy-dialog.single-img { left: 220px; top: 85px; } ' +
+        '.copy-dialog a { display: inline-block; padding: 2px 5px; margin-right: 2px; color: #aaa; text-decoration: none; }' +
+        '.copy-dialog a:hover { background: green; color: #fff; text-decoration: none;  }' +
+        '.ft_scaleit { transform: scale(2.0); } ' +
+        '.ft_active { background-color: lightgreen; outline: 1px solid #eee; }' +
         '';
 
     var css = actions_css +
         '';
+
+    // span.copy-dialog
+    var copy_img_dialog = '<!-- actions --><a name="thumb">150</a><a name="low">320</a><a name="small">500</a><a name="med">1024</a><a name="high">1920</a><!-- end -->';
+
 
 //------------------------------------------------------------
 
@@ -58,9 +65,9 @@
                 if (js_version.trim() != repo_version.trim()) {
                     // other version available
                     var info = document.createElement('DIV');
-                    info.id = 'dim-tools-update';
-                    info.className = 'flashit';
-                    info.innerHTML = '<span title="Your version = ' + this_version + ' | New version = ' + repo_version + '">*</span>';
+                    info.id = 'ft-tools-update';
+                    info.className += ' ft_active';
+                    info.innerHTML = '<span title="Your version = ' + js_version + ' | New version = ' + repo_version + '">*</span>';
                     var btn = document.querySelector('#dim-tools-button');
                     btn.appendChild(info);
                 }
@@ -122,48 +129,95 @@
         try {
             copied = document.execCommand('copy');
             var msg = copied ? 'successful' : 'unsuccessful';
-            console.log('Copying text command was ' + msg);
+            console.log('Copied text = ' + txt);
         } catch (err) {
             console.log('Oops, unable to copy');
         }
+        // delete temp. textarea
+        elem.parentNode.removeChild(elem);
+        // scroll back to clicked element
         window.scrollTo(scrollX, scrollY);
         return copied;
     }
 
     /**
-     * copy the image url
-     *
-     * @param e
+     * set actions for the image copy dialog
      */
-    function copyStreamImgUrl(e) {
-        e.stopPropagation();
-        var icon = e.target;
-        var div = icon.parentNode;
-        var url = 'https:' + div.style.backgroundImage.split('"')[1];
-        if (copyToClipboard(url)) {
-            // flash icon
-            icon.className += ' flashit scaleit';
-            window.setTimeout(function() {
-                e.target.className = e.target.className.replace(' flashit', '').replace(' scaleit', '');
-            }, 1000);
+    function activateCopyImgDialog(dialog) {
+        if (dialog && (dialog.className.indexOf('copy-dialog') != -1)) {
+            var div = dialog.parentNode;
+            var url, needle;
+            if (div.id == 'content') { // single image view
+                 url = document.querySelector('.view.photo-well-media-scrappy-view > img.main-photo').src;
+                 needle = '_b.jpg';
+            } else if (div.className.indexOf() != -1) { // photostream or album view
+                 url = 'https:' + div.style.backgroundImage.split('"')[1];
+                 needle = '_c.jpg';
+            }
+            dialog.querySelectorAll("a").forEach(
+                function (a) {
+                    a.addEventListener('click',
+                        function(e) {
+                            var elem = e.target;
+                            switch(elem.name) {
+                                case 'thumb': // 150 x 150
+                                    url = url.replace(needle, '_q.jpg');
+                                    break;
+                                case 'low': // 320
+                                    url = url.replace(needle, '_n.jpg');
+                                    break;
+                                case 'small': // 500
+                                    url = url.replace(needle, '.jpg');
+                                    break;
+                                case 'med': // 1024
+                                    url = url.replace(needle, '_b.jpg');
+                                    break;
+                                case 'high': // original
+                                    url = url.replace(needle, '_h.jpg');
+                                    break;
+                                default:
+                                    // do nothing
+                                    break;
+                            }
+                            if (copyToClipboard(url)) {
+                                // close dialog
+                                closeCopyImgUrlDialog(elem.parentNode); // is span.copy-dialog
+                            }
+                        }
+                    );
+                }
+            );
         }
     }
 
     /**
-     * copy the image url
-     *
-     * @param e
+     * remove the copy image dialog
+     * @param icon
      */
-    function copySingleImgUrl(e) {
+    function closeCopyImgUrlDialog(dialog) {
+        if (dialog && dialog.className.indexOf('copy-dialog') != -1) { // process only clicks on the copy-icon
+            dialog.parentNode.removeChild(dialog);
+        }
+    }
+
+    function toggleCopyImgUrlDialog(e) {
         e.stopPropagation();
         var icon = e.target;
-        var url = document.querySelector('.view.photo-well-media-scrappy-view > img.main-photo').src;
-        if (copyToClipboard(url)) {
-            // flash icon
-            icon.className += ' flashit scaleit';
-            window.setTimeout(function() {
-                e.target.className = e.target.className.replace(' flashit', '').replace(' scaleit', '');
-            }, 1000);
+        if (icon && icon.className.indexOf('my-icon-edit') != -1) { // process only clicks on the copy-icon
+            if (icon.className.indexOf(' open') == -1) { // dialog closed
+                var dialog = document.createElement('SPAN');
+                dialog.className = 'copy-dialog';
+                if (icon.parentNode.id == 'content') {
+                    dialog.className += ' single-img';
+                }
+                dialog.innerHTML = copy_img_dialog;
+                icon.parentNode.insertBefore(dialog, icon);
+                icon.className = icon.className.replace(' open', '') + ' open';
+                activateCopyImgDialog(dialog);
+            } else { // dialog open
+                closeCopyImgUrlDialog(icon.previousSibling);
+                icon.className = icon.className.replace(' open', '');
+            }
         }
     }
 
@@ -177,7 +231,7 @@
             icon.className = 'my-icon-edit';
             icon.title = 'copy img url';
             img.prepend(icon);
-            img.addEventListener('click', copyStreamImgUrl);
+            img.addEventListener('click', toggleCopyImgUrlDialog);
         });
     }
 
@@ -190,7 +244,8 @@
         icon.className = 'my-icon-edit single-img';
         icon.title = 'copy img url';
         document.querySelector('#content').prepend(icon);
-        icon.addEventListener('click', copySingleImgUrl);
+        // icon.addEventListener('click', copySingleImgUrl);
+        icon.addEventListener('click', toggleCopyImgUrlDialog);
     }
 
     /**
