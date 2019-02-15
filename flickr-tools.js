@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         flickr-tools
 // @namespace    http://tampermonkey.net/
-// @version      0.21
+// @version      0.3.0
 // @description  little script helpers for Flickr
 // @author       EifelDriver
 // @include      https://www.flickr.com/photos/*
@@ -14,11 +14,10 @@
     /**
      * define some vars
      */
-    var js_version = '0.21';
+    var js_version = '0.3.0';
     var js_debug = 1;
     var version_file = 'https://raw.githubusercontent.com/eifeldriver/flickr-tools/master/version';
-    var watcher = null;
-
+    var watcher, watcher_dots, watcher_laoding = null;
 
     var actions_css = '' +
         '.my-icon-edit { background: #444 url(https://s.yimg.com/ap/build/images/sprites/icons-938e2840.png) -412px -236px no-repeat;' +
@@ -257,13 +256,21 @@
      */
     function addUrlCopyIconOnStreamPage() {
         var imgs = document.querySelectorAll('.view.photo-list-photo-view');
+        var cnt = 0;
         imgs.forEach( function (img) {
-            var icon = document.createElement('SPAN');
-            icon.className = 'my-icon-edit';
-            icon.title = 'open copy dialog';
-            img.prepend(icon);
-            img.addEventListener('click', toggleCopyImgUrlDialog);
+            if (img.querySelector('.my-icon-edit')) {
+                // image already has the icon -> skip
+            } else {
+                // add copy icon
+                var icon = document.createElement('SPAN');
+                icon.className = 'my-icon-edit';
+                icon.title = 'open copy dialog';
+                img.prepend(icon);
+                img.addEventListener('click', toggleCopyImgUrlDialog);
+                cnt++;
+            }
         });
+        _debug('add copy icon on ' + cnt + ' images');
     }
 
     /**
@@ -277,6 +284,32 @@
         document.querySelector('#content').prepend(icon);
         // icon.addEventListener('click', copySingleImgUrl);
         icon.addEventListener('click', toggleCopyImgUrlDialog);
+    }
+
+    /**
+     * check if flickr is currently loading more images
+     */
+    function checkFlickrIsLoading() {
+        // _debug('exec checkFlickrIsLoading');
+        var dots = document.querySelector('.flickr-dots');
+        if (dots) {
+            window.clearInterval(watcher_dots);
+            watcher_laoding = window.setInterval(waitForFinishLoading, 500);
+        }
+    }
+
+    /**
+     * wait until the loading process is finished
+     */
+    function waitForFinishLoading() {
+        // _debug('exec waitForFinishLoading');
+        if (document.querySelector('.flickr-dots')) {
+            // still waiting ...
+        } else {
+            window.clearInterval(watcher_laoding);
+            addUrlCopyIconOnStreamPage(); // add copy icons to re-loaded images
+            watcher_dots = window.setInterval(checkFlickrIsLoading, 500);
+        }
     }
 
     /**
@@ -302,6 +335,7 @@
 
                 break;
         }
+        watcher_dots = window.setInterval(checkFlickrIsLoading, 500);
     }
 
 //###########################################################
