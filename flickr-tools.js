@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         flickr-tools
 // @namespace    http://tampermonkey.net/
-// @version      0.3.0
+// @version      0.3.1
 // @description  little script helpers for Flickr
 // @author       EifelDriver
 // @include      https://www.flickr.com/photos/*
@@ -14,7 +14,7 @@
     /**
      * define some vars
      */
-    var js_version = '0.3.0';
+    var js_version = '0.3.1';
     var js_debug = 1;
     var version_file = 'https://raw.githubusercontent.com/eifeldriver/flickr-tools/master/version';
     var watcher, watcher_dots, watcher_laoding = null;
